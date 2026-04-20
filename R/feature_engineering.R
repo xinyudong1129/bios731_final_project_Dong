@@ -20,6 +20,7 @@ calc_window_features <- function(x, timestamps) {
   }
   
   fit <- stats::lm(x ~ idx)
+  last_time <- max(timestamps, na.rm = TRUE)
   
   tibble::tibble(
     mean_glucose = mean(x, na.rm = TRUE),
@@ -32,11 +33,10 @@ calc_window_features <- function(x, timestamps) {
     delta_last_first = x[length(x)] - x[1],
     pct_high = mean(x > 180, na.rm = TRUE),
     pct_low = mean(x < 70, na.rm = TRUE),
-    hour_of_day = lubridate::hour(max(timestamps)),
-    day_of_week = lubridate::wday(max(timestamps), week_start = 1)
+    hour_of_day = floor((last_time %% (24 * 60)) / 60),
+    day_of_week = floor(last_time / (24 * 60)) %% 7 + 1
   )
 }
-
 make_pre_missing_windows <- function(data,
                                      window_size = 12L,
                                      horizon_steps = 1L,
@@ -63,7 +63,6 @@ make_pre_missing_windows <- function(data,
         
         rows[[i]] <- dplyr::bind_cols(
           tibble::tibble(
-            patient_id = key$patient_id,
             end_time = df$time[i],
             y_onset = df$y_onset[i],
             y_duration = ifelse(df$y_onset[i] == 1,
@@ -80,7 +79,6 @@ make_pre_missing_windows <- function(data,
   
   out
 }
-
 build_analysis_dataset <- function(raw_data,
                                    interval_mins = 5,
                                    window_size = 12L,
