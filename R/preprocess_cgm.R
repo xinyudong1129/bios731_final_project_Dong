@@ -1,27 +1,41 @@
 read_cgm_data <- function(path = here::here("data", "raw", "cgm.csv")) {
-  readr::read_csv(
-    path,
-    col_types = readr::cols(
-      patient_id = readr::col_character(),
-      time = readr::col_datetime(),
-      glucose = readr::col_double()
-    )
-  ) |>
+  readr::read_csv(path, show_col_types = FALSE) %>%
+    dplyr::select(1:3) %>%   # <-- only first 3 columns
+    dplyr::rename(
+      patient_id = 1,
+      glucose = 2,
+      time = 3
+    ) %>%
+    dplyr::mutate(
+      patient_id = as.character(patient_id),
+      glucose = as.numeric(glucose),
+      time = as.numeric(time)
+    ) %>%
     dplyr::arrange(patient_id, time)
 }
 
 regularize_cgm_grid <- function(data, interval_mins = 5) {
-  interval_sec <- interval_mins * 60
   
-  data |>
-    dplyr::group_by(patient_id) |>
+  patient_ranges <- data %>%
+    dplyr::group_by(patient_id) %>%
     dplyr::summarise(
-      time = seq(min(time, na.rm = TRUE),
-                 max(time, na.rm = TRUE),
-                 by = interval_sec),
+      min_time = min(time, na.rm = TRUE),
+      max_time = max(time, na.rm = TRUE),
       .groups = "drop"
-    ) |>
-    dplyr::left_join(data, by = c("patient_id", "time")) |>
+    )
+  
+  full_grid <- patient_ranges %>%
+    dplyr::rowwise() %>%
+    dplyr::do(
+      tibble::tibble(
+        patient_id = .$patient_id,
+        time = seq(.$min_time, .$max_time, by = interval_mins)
+      )
+    ) %>%
+    dplyr::ungroup()
+  
+  full_grid %>%
+    dplyr::left_join(data, by = c("patient_id", "time")) %>%
     dplyr::arrange(patient_id, time)
 }
 
