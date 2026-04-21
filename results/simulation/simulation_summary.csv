@@ -1,0 +1,3 @@
+method,auroc_mean,auprc_mean,rmse_mean,coverage_mean
+bayes_mcmc,NA,NA,NA,NA
+glm_em,0.5698444588565713,0.010474767772348362,7.825104843191724,NA

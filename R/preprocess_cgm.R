@@ -40,30 +40,25 @@ regularize_cgm_grid <- function(data, interval_mins = 5) {
 }
 
 label_missing_intervals <- function(data, interval_mins = 5) {
-  step_n <- 1L
-  
-  data |>
-    dplyr::group_by(patient_id) |>
+  data %>%
+    dplyr::group_by(patient_id) %>%
+    dplyr::arrange(time, .by_group = TRUE) %>%
     dplyr::mutate(
-      is_missing = is.na(glucose),
-      miss_run_id = data.table::rleid(is_missing),
-      miss_run_length_n = dplyr::if_else(
-        is_missing,
-        ave(is_missing, miss_run_id, FUN = length),
-        0L
-      ),
-      miss_duration_mins = miss_run_length_n * interval_mins,
-      missing_start = is_missing & !dplyr::lag(is_missing, default = FALSE),
-      next_missing_start = dplyr::lead(missing_start, default = FALSE)
-    ) |>
+      time_diff = dplyr::lead(time) - time,
+      gap_steps = ifelse(is.na(time_diff), 0, time_diff / interval_mins),
+      missing_start = !is.na(time_diff) & gap_steps > 1,
+      miss_duration_mins = ifelse(missing_start, time_diff - interval_mins, NA_real_)
+    ) %>%
     dplyr::ungroup()
 }
 
 flag_future_missing_onset <- function(data, horizon_steps = 1L) {
-  data |>
-    dplyr::group_by(patient_id) |>
+  if (horizon_steps != 1L) {
+    warning("With gap-based labeling, horizon_steps is being ignored and onset is defined at the current row.")
+  }
+  
+  data %>%
     dplyr::mutate(
-      y_onset = as.integer(dplyr::lead(missing_start, n = horizon_steps, default = FALSE))
-    ) |>
-    dplyr::ungroup()
+      y_onset = as.integer(missing_start)
+    )
 }

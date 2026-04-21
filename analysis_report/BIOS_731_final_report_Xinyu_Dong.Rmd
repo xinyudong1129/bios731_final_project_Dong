@@ -1,0 +1,136 @@
+---
+title: "BIOS 731 final report"
+author: "Xinyu Dong"
+date: "2026-04-21"
+output: pdf_document
+---
+
+```{r}
+library(here)
+library(readr)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+```
+
+# Overview
+
+This document summarizes the results of the CGM missing-interval prediction analysis. We report cross-validated performance for onset prediction and duration prediction, and we summarize full-data Bayesian predictions using the previously generated result tables and figures saved in the project directories.
+
+##Data sources used in this summary
+
+The following previously created files are used in this report:
+
+`results/metrics/real_data_cv_results.csv`
+`results/metrics/real_data_cv_summary.csv`
+`outputs/tables/cv_summary_clean.csv`
+`outputs/tables/top20_bayesian_onset_risk.csv`
+`outputs/tables/bayes_onset_deciles.csv`
+`outputs/figures/cv_bar_metrics.png`
+`outputs/figures/cv_fold_metrics.png`
+`outputs/figures/cv_rmse.png`
+`outputs/figures/bayes_onset_prob_hist.png`
+`outputs/figures/bayes_onset_decile_plot.png`
+`outputs/figures/bayes_duration_scatter.png`
+`Cross-validated results`
+`Fold-level results`
+
+# Cross-validated results
+## Fold-level results
+
+```{r}
+cv_results <- read_csv(here::here("results", "metrics", "real_data_cv_results.csv"), show_col_types = FALSE)
+cv_results
+```
+
+Table 1 reports fold-specific performance for the fitted models. The most relevant metrics for onset prediction are AUROC and AUPRC. RMSE is shown for duration prediction when available.
+
+```{r}
+kable(cv_results, digits = 3, caption = "Table 1. Fold-specific cross-validated results.")
+```
+
+The cross-validated results suggest that onset prediction is feasible, although performance varies substantially across folds. The AUROC values indicate that the model has some ability to rank windows preceding a missing interval higher than windows not followed by missingness. The AUPRC values are lower, which is expected in a rare-event setting. Duration prediction is less stable, with RMSE varying across folds and some folds lacking usable duration estimates.
+
+
+# Visual summaries of cross-validation
+
+## Mean performance by method
+
+
+```{r}
+knitr::include_graphics(here::here("outputs", "figures", "cv_bar_metrics.png"))
+```
+
+Figure 1 summarizes mean cross-validated onset prediction performance across methods. AUROC and AUPRC are shown separately to highlight both ranking ability and rare-event precision.
+
+## Fold-specific performance
+
+```{r}
+knitr::include_graphics(here::here("outputs", "figures", "cv_fold_metrics.png"))
+```
+
+
+Figure 2 shows that performance is heterogeneous across folds. This variation is consistent with the rarity and uneven distribution of missing-interval onset events across patients and folds.
+
+
+## Duration RMSE
+
+```{r}
+knitr::include_graphics(here::here("outputs", "figures", "cv_rmse.png"))
+```
+
+When duration RMSE is available, the results suggest that duration estimation is more difficult and less stable than onset prediction.
+
+# Full-data Bayesian onset predictions
+
+## Distribution of predicted onset probabilities
+
+```{r}
+knitr::include_graphics(here::here("outputs", "figures", "bayes_onset_prob_hist.png"))
+```
+
+Figure 4 displays the distribution of predicted probabilities from the full-data Bayesian onset model. Most windows are expected to have low predicted probability, since missing-interval onset is a relatively uncommon event.
+
+
+## Observed onset rate by risk decile
+
+```{r}
+if (file.exists(here::here("outputs", "tables", "bayes_onset_deciles.csv"))) {
+  onset_deciles <- read_csv(here::here("outputs", "tables", "bayes_onset_deciles.csv"), show_col_types = FALSE)
+  kable(onset_deciles, digits = 4, caption = "Table 3. Observed onset rate by predicted-risk decile.")
+}
+```
+
+```{r}
+knitr::include_graphics(here::here("outputs", "figures", "bayes_onset_decile_plot.png"))
+```
+
+Table 3 and Figure 5 assess practical risk stratification. If the model is useful, higher predicted-risk deciles should correspond to higher observed onset rates.
+
+
+## Highest-risk windows
+
+```{r}
+if (file.exists(here::here("outputs", "tables", "top20_bayesian_onset_risk.csv"))) {
+  top_risk <- read_csv(here::here("outputs", "tables", "top20_bayesian_onset_risk.csv"), show_col_types = FALSE)
+  kable(top_risk, digits = 4, caption = "Table 4. Top 20 windows ranked by Bayesian predicted onset risk.")
+}
+```
+
+Table 4 lists the windows assigned the highest predicted probability of imminent missingness by the full-data Bayesian onset model.
+
+
+## Full-data Bayesian duration predictions
+
+```{r}
+knitr::include_graphics(here::here("outputs", "figures", "bayes_duration_scatter.png"))
+```
+
+When available, Figure 6 compares observed and predicted missing durations. Agreement around the 45-degree line indicates better predictive performance. In practice, duration prediction is often noisier than onset prediction, so this figure should be interpreted with caution.
+
+
+# Interpretation
+
+Overall, the results indicate that predicting the onset of a missing interval is more successful than predicting its duration. Cross-validated AUROC values suggest meaningful discriminatory ability, while AUPRC values reflect the added difficulty of a rare-event setting. The Bayesian full-data onset model provides an additional way to rank windows by future missingness risk, and the decile-based summaries help assess whether higher-risk windows indeed correspond to higher observed onset rates. By contrast, duration prediction remains more unstable, both across folds and in full-data modeling.
+
+
